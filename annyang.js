@@ -3,6 +3,7 @@
 //! author  : Tal Ater @TalAter
 //! license : MIT
 //! https://www.TalAter.com/annyang/
+//! mucked about with by @noopkat
 (function (undefined) {
   "use strict";
 
@@ -45,7 +46,7 @@
                   })
                   .replace(splatParam, '(.*?)')
                   .replace(optionalRegex, '\\s*$1?\\s*');
-    return new RegExp('^' + command + '$', 'i');
+    return new RegExp('\s'+command, 'i');
   };
 
   // This method receives an array of callbacks to iterate over, and invokes each of them
@@ -132,21 +133,31 @@
         invokeCallbacks(callbacks.result);
         var results = event.results[event.resultIndex];
         var commandText;
+        var alreadyMatched = [];
         // go over each of the 5 results and alternative results received (we've set maxAlternatives to 5 above)
-        for (var i = 0; i<results.length; i++) {
+        for (var i = 0; i<results.length; i++) {         
           // the text recognized
-          commandText = results[i].transcript.trim();
+          commandText = results[i].transcript.trim().toLowerCase();
+          var commandTextArr = commandText.split(' ');
           if (debugState) {
             root.console.log('Speech recognized: %c'+commandText, debugStyle);
           }
-
           // try and match recognized text to one of the commands on the list
           for (var j = 0, l = commandsList.length; j < l; j++) {
-            var result = commandsList[j].command.exec(commandText);
-            if (result) {
-              var parameters = result.slice(1);
+            var originalPhrase = commandsList[j].originalPhrase.toLowerCase(),
+                result = ($.inArray(originalPhrase, commandTextArr) !== -1) ? true : false,
+                repeat = ($.inArray(originalPhrase, alreadyMatched) !== -1) ? true : false;
+
+            if (result && !repeat) {
+              alreadyMatched.push(originalPhrase);
+              //var parameters = result.slice(1);
+              var parameters = [];
+              var meta = {};
+              meta.recognisedPhrase = originalPhrase;
+              parameters.push(meta);
+
               if (debugState) {
-                root.console.log('command matched: %c'+commandsList[j].originalPhrase, debugStyle);
+                root.console.log('command matched: %c' + originalPhrase, debugStyle);
                 if (parameters.length) {
                   root.console.log('with parameters', parameters);
                 }
@@ -154,12 +165,12 @@
               // execute the matched command
               commandsList[j].callback.apply(this, parameters);
               invokeCallbacks(callbacks.resultMatch);
-              return true;
+              //return true;
             }
           }
         }
-        invokeCallbacks(callbacks.resultNoMatch);
-        return false;
+        //invokeCallbacks(callbacks.resultNoMatch);
+        //return false;
       };
 
       // build commands list
